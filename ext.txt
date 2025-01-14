@@ -1,0 +1,1 @@
+OGGER.info(f"{s}{'' if len(det) else s='no detections')}")LOGGER.info(f"{s}{' ' if len(det) else 'no'}0")
