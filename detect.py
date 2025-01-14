@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
+# Ultralytics YOLOv5 🚀, AGPL-3.0 license
 """
 Run YOLOv5 detection inference on images, videos, directories, globs, YouTube, webcam, streams, etc.
 
@@ -20,7 +20,7 @@ Usage - formats:
                                  yolov5s.onnx               # ONNX Runtime or OpenCV DNN with --dnn
                                  yolov5s_openvino_model     # OpenVINO
                                  yolov5s.engine             # TensorRT
-                                 yolov5s.mlmodel            # CoreML (macOS-only)
+                                 yolov5s.mlpackage          # CoreML (macOS-only)
                                  yolov5s_saved_model        # TensorFlow SavedModel
                                  yolov5s.pb                 # TensorFlow GraphDef
                                  yolov5s.tflite             # TensorFlow Lite
@@ -85,6 +85,7 @@ def run(
     device="",  # cuda device, i.e. 0 or 0,1,2,3 or cpu
     view_img=False,  # show results
     save_txt=False,  # save results to *.txt
+    save_format=0,  # save boxes coordinates in YOLO format or Pascal-VOC format (0 for YOLO and 1 for Pascal-VOC)
     save_csv=False,  # save results in CSV format
     save_conf=False,  # save confidences in --save-txt labels
     save_crop=False,  # save cropped prediction boxes
@@ -174,10 +175,12 @@ def run(
 
         # Create or append to the CSV file
         def write_to_csv(image_name, prediction, confidence):
+            """Writes prediction data for an image to a CSV file, appending if the file exists."""
             data = {"Image Name": image_name, "Prediction": prediction, "Confidence": confidence}
+            file_exists = os.path.isfile(csv_path)
             with open(csv_path, mode="a", newline="") as f:
                 writer = csv.DictWriter(f, fieldnames=data.keys())
-                if not csv_path.is_file():
+                if not file_exists:
                     writer.writeheader()
                 writer.writerow(data)
 
@@ -217,8 +220,13 @@ def run(
                         write_to_csv(p.name, label, confidence_str)
 
                     if save_txt:  # Write to file
-                        xywh = (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()  # normalized xywh
-                        line = (cls, *xywh, conf) if save_conf else (cls, *xywh)  # label format
+                        if save_format == 0:
+                            coords = (
+                                (xyxy2xywh(torch.tensor(xyxy).view(1, 4)) / gn).view(-1).tolist()
+                            )  # normalized xywh
+                        else:
+                            coords = (torch.tensor(xyxy).view(1, 4) / gn).view(-1).tolist()  # xyxy
+                        line = (cls, *coords, conf) if save_conf else (cls, *coords)  # label format
                         with open(f"{txt_path}.txt", "a") as f:
                             f.write(("%g " * len(line)).rstrip() % line + "\n")
 
@@ -277,6 +285,49 @@ def run(
 
 
 def parse_opt():
+    """
+    Parse command-line arguments for YOLOv5 detection, allowing custom inference options and model configurations.
+
+    Args:
+        --weights (str | list[str], optional): Model path or Triton URL. Defaults to ROOT / 'yolov5s.pt'.
+        --source (str, optional): File/dir/URL/glob/screen/0(webcam). Defaults to ROOT / 'data/images'.
+        --data (str, optional): Dataset YAML path. Provides dataset configuration information.
+        --imgsz (list[int], optional): Inference size (height, width). Defaults to [640].
+        --conf-thres (float, optional): Confidence threshold. Defaults to 0.25.
+        --iou-thres (float, optional): NMS IoU threshold. Defaults to 0.45.
+        --max-det (int, optional): Maximum number of detections per image. Defaults to 1000.
+        --device (str, optional): CUDA device, i.e., '0' or '0,1,2,3' or 'cpu'. Defaults to "".
+        --view-img (bool, optional): Flag to display results. Defaults to False.
+        --save-txt (bool, optional): Flag to save results to *.txt files. Defaults to False.
+        --save-csv (bool, optional): Flag to save results in CSV format. Defaults to False.
+        --save-conf (bool, optional): Flag to save confidences in labels saved via --save-txt. Defaults to False.
+        --save-crop (bool, optional): Flag to save cropped prediction boxes. Defaults to False.
+        --nosave (bool, optional): Flag to prevent saving images/videos. Defaults to False.
+        --classes (list[int], optional): List of classes to filter results by, e.g., '--classes 0 2 3'. Defaults to None.
+        --agnostic-nms (bool, optional): Flag for class-agnostic NMS. Defaults to False.
+        --augment (bool, optional): Flag for augmented inference. Defaults to False.
+        --visualize (bool, optional): Flag for visualizing features. Defaults to False.
+        --update (bool, optional): Flag to update all models in the model directory. Defaults to False.
+        --project (str, optional): Directory to save results. Defaults to ROOT / 'runs/detect'.
+        --name (str, optional): Sub-directory name for saving results within --project. Defaults to 'exp'.
+        --exist-ok (bool, optional): Flag to allow overwriting if the project/name already exists. Defaults to False.
+        --line-thickness (int, optional): Thickness (in pixels) of bounding boxes. Defaults to 3.
+        --hide-labels (bool, optional): Flag to hide labels in the output. Defaults to False.
+        --hide-conf (bool, optional): Flag to hide confidences in the output. Defaults to False.
+        --half (bool, optional): Flag to use FP16 half-precision inference. Defaults to False.
+        --dnn (bool, optional): Flag to use OpenCV DNN for ONNX inference. Defaults to False.
+        --vid-stride (int, optional): Video frame-rate stride, determining the number of frames to skip in between
+            consecutive frames. Defaults to 1.
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments as an argparse.Namespace object.
+
+    Example:
+        ```python
+        from ultralytics import YOLOv5
+        args = YOLOv5.parse_opt()
+        ```
+    """
     parser = argparse.ArgumentParser()
     parser.add_argument("--weights", nargs="+", type=str, default=ROOT / "yolov5s.pt", help="model path or triton URL")
     parser.add_argument("--source", type=str, default=ROOT / "data/images", help="file/dir/URL/glob/screen/0(webcam)")
@@ -288,6 +339,12 @@ def parse_opt():
     parser.add_argument("--device", default="", help="cuda device, i.e. 0 or 0,1,2,3 or cpu")
     parser.add_argument("--view-img", action="store_true", help="show results")
     parser.add_argument("--save-txt", action="store_true", help="save results to *.txt")
+    parser.add_argument(
+        "--save-format",
+        type=int,
+        default=0,
+        help="whether to save boxes coordinates in YOLO format or Pascal-VOC format when save-txt is True, 0 for YOLO and 1 for Pascal-VOC",
+    )
     parser.add_argument("--save-csv", action="store_true", help="save results in CSV format")
     parser.add_argument("--save-conf", action="store_true", help="save confidences in --save-txt labels")
     parser.add_argument("--save-crop", action="store_true", help="save cropped prediction boxes")
@@ -313,6 +370,28 @@ def parse_opt():
 
 
 def main(opt):
+    """
+    Executes YOLOv5 model inference based on provided command-line arguments, validating dependencies before running.
+
+    Args:
+        opt (argparse.Namespace): Command-line arguments for YOLOv5 detection. See function `parse_opt` for details.
+
+    Returns:
+        None
+
+    Note:
+        This function performs essential pre-execution checks and initiates the YOLOv5 detection process based on user-specified
+        options. Refer to the usage guide and examples for more information about different sources and formats at:
+        https://github.com/ultralytics/ultralytics
+
+    Example usage:
+
+    ```python
+    if __name__ == "__main__":
+        opt = parse_opt()
+        main(opt)
+    ```
+    """
     check_requirements(ROOT / "requirements.txt", exclude=("tensorboard", "thop"))
     run(**vars(opt))
 

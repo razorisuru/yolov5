@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
+# Ultralytics YOLOv5 🚀, AGPL-3.0 license
 """Model validation metrics."""
 
 import numpy as np
@@ -7,7 +7,7 @@ from ..metrics import ap_per_class
 
 
 def fitness(x):
-    # Model fitness as a weighted combination of metrics
+    """Evaluates model fitness by a weighted sum of 8 metrics, `x`: [N,8] array, weights: [0.1, 0.9] for mAP and F1."""
     w = [0.0, 0.0, 0.1, 0.9, 0.0, 0.0, 0.1, 0.9]
     return (x[:, :8] * w).sum(1)
 
@@ -54,7 +54,12 @@ def ap_per_class_box_and_mask(
 
 
 class Metric:
+    """Computes performance metrics like precision, recall, F1 score, and average precision for model evaluation."""
+
     def __init__(self) -> None:
+        """Initializes performance metric attributes for precision, recall, F1 score, average precision, and class
+        indices.
+        """
         self.p = []  # (nc, )
         self.r = []  # (nc, )
         self.f1 = []  # (nc, )
@@ -124,10 +129,11 @@ class Metric:
         return (self.mp, self.mr, self.map50, self.map)
 
     def class_result(self, i):
-        """Class-aware result, return p[i], r[i], ap50[i], ap[i]"""
+        """Class-aware result, return p[i], r[i], ap50[i], ap[i]."""
         return (self.p[i], self.r[i], self.ap50[i], self.ap[i])
 
     def get_maps(self, nc):
+        """Calculates and returns mean Average Precision (mAP) for each class given number of classes `nc`."""
         maps = np.zeros(nc) + self.map
         for i, c in enumerate(self.ap_class_index):
             maps[c] = self.ap[i]
@@ -136,7 +142,7 @@ class Metric:
     def update(self, results):
         """
         Args:
-            results: tuple(p, r, ap, f1, ap_class)
+            results: tuple(p, r, ap, f1, ap_class).
         """
         p, r, all_ap, f1, ap_class_index = results
         self.p = p
@@ -150,29 +156,37 @@ class Metrics:
     """Metric for boxes and masks."""
 
     def __init__(self) -> None:
+        """Initializes Metric objects for bounding boxes and masks to compute performance metrics in the Metrics
+        class.
+        """
         self.metric_box = Metric()
         self.metric_mask = Metric()
 
     def update(self, results):
         """
         Args:
-            results: Dict{'boxes': Dict{}, 'masks': Dict{}}
+            results: Dict{'boxes': Dict{}, 'masks': Dict{}}.
         """
         self.metric_box.update(list(results["boxes"].values()))
         self.metric_mask.update(list(results["masks"].values()))
 
     def mean_results(self):
+        """Computes and returns the mean results for both box and mask metrics by summing their individual means."""
         return self.metric_box.mean_results() + self.metric_mask.mean_results()
 
     def class_result(self, i):
+        """Returns the sum of box and mask metric results for a specified class index `i`."""
         return self.metric_box.class_result(i) + self.metric_mask.class_result(i)
 
     def get_maps(self, nc):
+        """Calculates and returns the sum of mean average precisions (mAPs) for both box and mask metrics for `nc`
+        classes.
+        """
         return self.metric_box.get_maps(nc) + self.metric_mask.get_maps(nc)
 
     @property
     def ap_class_index(self):
-        # boxes and masks have the same ap_class_index
+        """Returns the class index for average precision, shared by both box and mask metrics."""
         return self.metric_box.ap_class_index
 
 

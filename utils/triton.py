@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
+# Ultralytics YOLOv5 🚀, AGPL-3.0 license
 """Utils to interact with the Triton Inference Server."""
 
 import typing
@@ -17,10 +17,9 @@ class TritonRemoteModel:
 
     def __init__(self, url: str):
         """
-        Keyword arguments:
-        url: Fully qualified address of the Triton server - for e.g. grpc://localhost:8000
+        Keyword Arguments:
+        url: Fully qualified address of the Triton server - for e.g. grpc://localhost:8000.
         """
-
         parsed_url = urlparse(url)
         if parsed_url.scheme == "grpc":
             from tritonclient.grpc import InferenceServerClient, InferInput
@@ -71,6 +70,7 @@ class TritonRemoteModel:
         return result[0] if len(result) == 1 else result
 
     def _create_inputs(self, *args, **kwargs):
+        """Creates input tensors from args or kwargs, not both; raises error if none or both are provided."""
         args_len, kwargs_len = len(args), len(kwargs)
         if not args_len and not kwargs_len:
             raise RuntimeError("No inputs provided.")

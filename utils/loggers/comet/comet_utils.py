@@ -1,3 +1,5 @@
+# Ultralytics YOLOv5 🚀, AGPL-3.0 license
+
 import logging
 import os
 from urllib.parse import urlparse
@@ -17,6 +19,7 @@ COMET_DEFAULT_CHECKPOINT_FILENAME = os.getenv("COMET_DEFAULT_CHECKPOINT_FILENAME
 
 
 def download_model_checkpoint(opt, experiment):
+    """Downloads YOLOv5 model checkpoint from Comet ML experiment, updating `opt.weights` with download path."""
     model_dir = f"{opt.project}/{experiment.name}"
     os.makedirs(model_dir, exist_ok=True)
 

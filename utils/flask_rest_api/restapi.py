@@ -1,4 +1,4 @@
-# YOLOv5 🚀 by Ultralytics, AGPL-3.0 license
+# Ultralytics YOLOv5 🚀, AGPL-3.0 license
 """Run a Flask REST API exposing one or more YOLOv5s models."""
 
 import argparse
@@ -16,6 +16,9 @@ DETECTION_URL = "/v1/object-detection/<model>"
 
 @app.route(DETECTION_URL, methods=["POST"])
 def predict(model):
+    """Predict and return object detections in JSON format given an image and model name via a Flask REST API POST
+    request.
+    """
     if request.method != "POST":
         return
 
